@@ -1,0 +1,162 @@
+package org.knowm.xchart;
+
+import de.rototor.pdfbox.graphics2d.PdfBoxGraphics2D;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
+import org.knowm.xchart.internal.Utils;
+import org.knowm.xchart.internal.chartpart.IChart;
+
+/** A helper class with static methods for saving Charts as a PDF file */
+public class PdfboxGraphicsEncoder {
+
+  private static final String PDF_FILE_EXTENSION = ".pdf";
+
+  /** Constructor - Private constructor to prevent instantiation */
+  private PdfboxGraphicsEncoder() {}
+
+  /**
+   * Write a chart to a file
+   *
+   * @param chart Chart
+   * @param fileName file name path
+   * @throws IOException
+   * @deprecated use {@link ChartEncoder#saveChart(IChart, String, String)} with format {@code
+   *     "pdf"} instead
+   */
+  @Deprecated
+  public static void savePdfboxGraphics(IChart chart, String fileName) throws IOException {
+
+    savePdfboxGraphics(chart, new File(addFileExtension(fileName)));
+  }
+
+  /**
+   * Write a chart to a file
+   *
+   * @param chart Chart
+   * @param file File
+   * @throws IOException
+   * @deprecated use {@link ChartEncoder#saveChart(IChart, OutputStream, String)} with format {@code
+   *     "pdf"} instead
+   */
+  @Deprecated
+  public static void savePdfboxGraphics(IChart chart, File file) throws IOException {
+
+    savePdfboxGraphics(chart, new BufferedOutputStream(new FileOutputStream(file)));
+  }
+
+  /**
+   * Write a chart to an OutputStream
+   *
+   * @param chart Chart
+   * @param os OutputStream
+   * @throws IOException
+   * @deprecated use {@link ChartEncoder#saveChart(IChart, OutputStream, String)} with format {@code
+   *     "pdf"} instead
+   */
+  @Deprecated
+  public static void savePdfboxGraphics(IChart chart, OutputStream os) throws IOException {
+
+    List<IChart> charts = new ArrayList<>();
+    charts.add(chart);
+    savePdfboxGraphics(charts, os);
+  }
+
+  /**
+   * Write multiple charts to a file
+   *
+   * @param charts List&lt;? extends IChart&gt;
+   * @param fileName file name path
+   * @throws IOException
+   * @deprecated use {@link ChartEncoder} per chart, or merge charts before export
+   */
+  @Deprecated
+  public static void savePdfboxGraphics(List<? extends IChart> charts, String fileName)
+      throws IOException {
+
+    savePdfboxGraphics(charts, new File(addFileExtension(fileName)));
+  }
+
+  /**
+   * Write multiple charts to a file
+   *
+   * @param charts List&lt;? extends IChart&gt;
+   * @param file File
+   * @throws IOException
+   * @deprecated use {@link ChartEncoder} per chart, or merge charts before export
+   */
+  @Deprecated
+  public static void savePdfboxGraphics(List<? extends IChart> charts, File file)
+      throws IOException {
+
+    savePdfboxGraphics(charts, new BufferedOutputStream(new FileOutputStream(file)));
+  }
+
+  /**
+   * Write multiple charts to an OutputStream
+   *
+   * @param charts List&lt;? extends IChart&gt;
+   * @param os OutputStream
+   * @throws IOException
+   * @deprecated use {@link ChartEncoder} per chart, or merge charts before export
+   */
+  @Deprecated
+  public static void savePdfboxGraphics(List<? extends IChart> charts, OutputStream os)
+      throws IOException {
+
+    Utils.requireOnClasspath(
+        "de.rototor.pdfbox.graphics2d.PdfBoxGraphics2D",
+        "PDF export",
+        "de.rototor.pdfbox:graphics2d");
+    PDDocument document = new PDDocument();
+    PDRectangle mediaBox = null;
+    PDPage page = null;
+    PDPageContentStream contentStream = null;
+    PdfBoxGraphics2D pdfBoxGraphics2D = null;
+    PDFormXObject xform = null;
+    for (IChart chart : charts) {
+      mediaBox = new PDRectangle(chart.getWidth(), chart.getHeight());
+      page = new PDPage(mediaBox);
+      // add page
+      document.addPage(page);
+      pdfBoxGraphics2D = new PdfBoxGraphics2D(document, chart.getWidth(), chart.getHeight());
+      chart.paint(pdfBoxGraphics2D, chart.getWidth(), chart.getHeight());
+      pdfBoxGraphics2D.dispose();
+      xform = pdfBoxGraphics2D.getXFormObject();
+
+      contentStream = new PDPageContentStream(document, page);
+      contentStream.drawForm(xform);
+      contentStream.close();
+    }
+
+    document.save(os);
+    document.close();
+  }
+
+  /**
+   * Only adds the extension of the ".pdf" to the filename if the filename doesn't already have it.
+   *
+   * @param fileName
+   * @return filename (if extension already exists), otherwise;: filename + ".pdf"
+   */
+  private static String addFileExtension(String fileName) {
+
+    String fileNameWithFileExtension = fileName;
+    if (fileName.length() <= PDF_FILE_EXTENSION.length()
+        || !fileName
+            .substring(fileName.length() - PDF_FILE_EXTENSION.length(), fileName.length())
+            .equalsIgnoreCase(PDF_FILE_EXTENSION)) {
+      fileNameWithFileExtension = fileName + PDF_FILE_EXTENSION;
+    }
+    return fileNameWithFileExtension;
+  }
+}

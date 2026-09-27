@@ -1,0 +1,40 @@
+# IntelliJ
+.idea/
+*.iws
+*.iml
+*.ipr
+*.ips
+.idea/
+
+# VS Code
+.vscode/
+
+# Eclipse
+.settings/
+.metadata/
+.classpath
+.project
+
+# Generated
+target/
+javadoc/
+bin/
+log/
+
+# Misc.
+.DS_Store
+*.bak
+.claude/
+
+# Sample images
+*.jpg
+*.bmp
+*.svg
+*.pdf
+*.eps
+*.png
+*.gif
+*.tif
+*.tiff
+*.webp
+*.avif

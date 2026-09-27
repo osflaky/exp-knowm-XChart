@@ -1,0 +1,82 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.knowm.xchart</groupId>
+        <artifactId>xchart-parent</artifactId>
+        <version>4.0.5-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>xchart-demo</artifactId>
+
+    <name>XChart Demo</name>
+    <description>A Swing App demonstration of various charts using XChart</description>
+
+    <properties>
+        <!-- skip test compilation during release:prepare's clean verify subprocess -->
+        <maven.test.skip>true</maven.test.skip>
+        <javafx.version>17.0.20</javafx.version>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.knowm.xchart</groupId>
+            <artifactId>xchart</artifactId>
+            <version>4.0.5-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>org.scilab.forge</groupId>
+            <artifactId>jlatexmath</artifactId>
+        </dependency>
+        <!-- XChart's export dependencies are optional; the demo exercises them, so it must
+             declare them explicitly (SVG/EPS, PDF and animated-GIF export). -->
+        <dependency>
+            <groupId>de.erichseifert.vectorgraphics2d</groupId>
+            <artifactId>VectorGraphics2D</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>de.rototor.pdfbox</groupId>
+            <artifactId>graphics2d</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.madgag</groupId>
+            <artifactId>animated-gif-lib</artifactId>
+        </dependency>
+        <!-- Demo-only: an ImageIO WebP writer plugin (bundles native binaries) so the ExampleWebP
+             sample can be generated. This is NOT a dependency of the xchart library itself; WebP
+             export works with any ImageIO WebP plugin the user chooses to add. -->
+        <dependency>
+            <groupId>com.github.usefulness</groupId>
+            <artifactId>webp-imageio</artifactId>
+            <version>0.11.0</version>
+        </dependency>
+        <!-- JavaFX 17 is the newest LTS line that still runs on Java 11 (the minimum JDK only
+             rose to 17 with JavaFX 21) and the first with Apple Silicon (mac-aarch64) natives. -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-swing</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+    </dependencies>
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>org.knowm.xchart.standalone.JavaFXDemo</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

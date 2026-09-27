@@ -1,0 +1,275 @@
+package org.knowm.xchart.internal.chartpart;
+
+import java.awt.*;
+import java.awt.font.FontRenderContext;
+import java.awt.font.TextLayout;
+import java.awt.geom.*;
+import java.util.*;
+import org.knowm.xchart.HorizontalBarSeries;
+import org.knowm.xchart.internal.Utils;
+import org.knowm.xchart.style.HorizontalBarStyler;
+
+public class PlotContent_HorizontalBar<
+        ST extends HorizontalBarStyler, S extends HorizontalBarSeries>
+    extends PlotContent_<ST, S> {
+
+  private final ST styler;
+  private final AxesChart<ST, S> axesChart;
+
+  /**
+   * Constructor
+   *
+   * @param chart
+   */
+  PlotContent_HorizontalBar(AxesChart<ST, S> chart) {
+
+    super(chart);
+    this.axesChart = chart;
+    this.styler = chart.getStyler();
+  }
+
+  @Override
+  public void doPaint(Graphics2D g) {
+
+    // X-Axis
+    double yTickSpace = styler.getPlotContentSize() * getBounds().getHeight();
+    // System.out.println("xTickSpace: " + xTickSpace);
+    double yVerticalMargin = Utils.getTickStartOffset(getBounds().getHeight(), yTickSpace);
+    // System.out.println("xLeftMargin: " + xLeftMargin);
+    Map<String, S> seriesMap = chart.getSeriesMap();
+    int numCategories = seriesMap.values().iterator().next().getYData().size();
+    double gridStep = yTickSpace / numCategories;
+    // System.out.println("gridStep: " + gridStep);
+
+    // Y-Axis
+    double xMin = axesChart.getXAxis().getMin();
+    double xMax = axesChart.getXAxis().getMax();
+
+    // figure out the general form of the chart
+    final int chartForm; // 1=positive, -1=negative, 0=span
+    if (xMin > 0.0 && xMax > 0.0) {
+      chartForm = 1; // positive chart
+    } else if (xMin < 0.0 && xMax < 0.0) {
+      chartForm = -1; // negative chart
+    } else {
+      chartForm = 0; // span chart
+    }
+    // System.out.println(xMin);
+    // System.out.println(xMax);
+    // System.out.println("chartForm: " + chartForm);
+
+    double xTickSpace = styler.getPlotContentSize() * getBounds().getWidth();
+
+    double xHorizontalMargin = Utils.getTickStartOffset(getBounds().getWidth(), xTickSpace);
+
+    // plot series
+    int seriesCounter = 0;
+
+    for (S series : seriesMap.values()) {
+
+      if (!series.isEnabled()) {
+        continue;
+      }
+
+      xMin = axesChart.getXAxis().getMin();
+      xMax = axesChart.getXAxis().getMax();
+      if (styler.isXAxisLogarithmic()) {
+        xMin = Math.log10(xMin);
+        xMax = Math.log10(xMax);
+      }
+
+      Iterator<? extends Number> xItr = series.getXData().iterator();
+      Iterator<?> yItr = series.getYData().iterator();
+
+      int categoryCounter = 0;
+      while (xItr.hasNext()) {
+
+        Number next = xItr.next();
+        Object nextCat = yItr.next();
+        // skip when a value is null
+        if (next == null) {
+
+          categoryCounter++;
+          continue;
+        }
+
+        double xOrig = next.doubleValue();
+        double x;
+        if (styler.isXAxisLogarithmic()) {
+          x = Math.log10(xOrig);
+        } else {
+          x = xOrig;
+        }
+
+        double xRight = 0.0;
+        double xLeft = 0.0;
+        switch (chartForm) {
+          case 1: // positive chart
+            // check for points off the chart draw area due to a custom yMin
+            if (x < xMin) {
+              categoryCounter++;
+              continue;
+            }
+            xRight = x;
+            xLeft = xMin;
+            break;
+
+          case -1: // negative chart
+            // check for points off the chart draw area due to a custom yMin
+            if (x > xMax) {
+              categoryCounter++;
+              continue;
+            }
+            xRight = xMax;
+            xLeft = x;
+            break;
+          case 0: // span chart
+            if (x >= 0.0) { // positive
+              xRight = x;
+              xLeft = 0.0;
+            } else {
+              xRight = 0.0;
+              xLeft = x;
+            }
+            break;
+          default:
+            break;
+        }
+
+        double xTransform = (xHorizontalMargin + (xRight - xMin) / (xMax - xMin) * xTickSpace);
+        double xOffset = getBounds().getX() + xTransform;
+
+        double zeroTransform = (xHorizontalMargin + (xLeft - xMin) / (xMax - xMin) * xTickSpace);
+        double zeroOffset = getBounds().getX() + zeroTransform;
+        double yOffset;
+        double barHeight;
+
+        {
+          double barHeightPercentage = styler.getAvailableSpaceFill();
+          barHeight = gridStep / chart.getSeriesMap().size() * barHeightPercentage;
+          double barMargin = gridStep * (1 - barHeightPercentage) / 2;
+          yOffset =
+              getBounds().getY()
+                  + yVerticalMargin
+                  + gridStep * categoryCounter++
+                  + seriesCounter * barHeight
+                  + barMargin;
+        }
+
+        // paint series
+        // paint bar
+        Path2D.Double barPath = new Path2D.Double();
+        barPath.moveTo(zeroOffset, yOffset);
+        barPath.lineTo(xOffset, yOffset);
+        barPath.lineTo(xOffset, yOffset + barHeight);
+        barPath.lineTo(zeroOffset, yOffset + barHeight);
+        barPath.closePath();
+
+        g.setColor(series.getFillColor());
+        g.fill(barPath);
+
+        if (styler.isLabelsVisible() && next != null) {
+          drawLabels(g, next, xOffset, yOffset, zeroOffset, barHeight, series.getFillColor());
+        }
+
+        // add data labels
+        if (interactionData != null) {
+          Rectangle2D.Double rect =
+              new Rectangle2D.Double(
+                  zeroOffset, yOffset, Math.abs(xOffset - zeroOffset), barHeight);
+          double xPoint;
+          if (x < 0) {
+            xPoint = -zeroOffset;
+          } else {
+            xPoint = xOffset;
+          }
+
+          interactionData
+              .addToolTip(
+                  rect,
+                  xPoint,
+                  yOffset,
+                  barHeight,
+                  axesChart.getXAxisFormat().format(xOrig),
+                  axesChart.getYAxisFormat().format(nextCat))
+              // categoryCounter was post-incremented above, so this bar's index is one less
+              .withSeries(series, categoryCounter - 1);
+        }
+      }
+
+      seriesCounter++;
+    }
+  }
+
+  private void drawLabels(
+      Graphics2D g,
+      Number next,
+      double xOffset,
+      double yOffset,
+      double zeroOffset,
+      double barHeight,
+      Color seriesColor) {
+
+    String numberAsString = axesChart.getXAxisFormat().format(next);
+
+    TextLayout textLayout =
+        new TextLayout(
+            numberAsString, styler.getLabelsFont(), new FontRenderContext(null, true, false));
+
+    AffineTransform rot =
+        AffineTransform.getRotateInstance(-1 * Math.toRadians(styler.getLabelsRotation()), 0, 0);
+    Shape shape = textLayout.getOutline(rot);
+    Rectangle2D labelRectangle = textLayout.getBounds();
+
+    double labelY;
+    if (styler.getLabelsRotation() > 0) {
+      double labelYDelta = labelRectangle.getWidth() / 2 - labelRectangle.getHeight() / 2;
+      double rotationOffset = labelYDelta * styler.getLabelsRotation() / 90;
+      labelY = yOffset + barHeight / 2 + labelRectangle.getHeight() / 2 + rotationOffset + 1;
+    } else {
+      labelY = yOffset + barHeight / 2 + labelRectangle.getHeight() / 2;
+    }
+    double labelsPosition = styler.getLabelsPosition();
+    double labelX;
+    if (labelsPosition <= 1) {
+      // inside the bar: the position is a fraction of the bar's length
+      if (next.doubleValue() >= 0.0) {
+        labelX =
+            xOffset
+                + (zeroOffset - xOffset) * (1 - labelsPosition)
+                - labelRectangle.getWidth() * labelsPosition;
+      } else {
+        labelX =
+            zeroOffset
+                - (zeroOffset - xOffset) * (1 - labelsPosition)
+                - labelRectangle.getWidth() * (1 - labelsPosition);
+      }
+    } else {
+      // outside the bar: a fixed pixel gap beyond the bar's end, independent of the bar's length
+      double outsideOffset = (labelsPosition - 1) * OUTSIDE_LABELS_OFFSET_SCALE;
+      if (next.doubleValue() >= 0.0) {
+        labelX = xOffset + outsideOffset;
+      } else {
+        labelX = zeroOffset - outsideOffset - labelRectangle.getWidth();
+      }
+    }
+
+    if (styler.isLabelsFontColorAutomaticEnabled()) {
+      // When the label is drawn outside the bar it sits on the plot background, not on the bar, so
+      // the automatic contrast color must be computed against the plot background color.
+      Color contrastBackgroundColor =
+          labelsPosition > 1 ? styler.getPlotBackgroundColor() : seriesColor;
+      g.setColor(styler.getLabelsFontColor(contrastBackgroundColor));
+    } else {
+      g.setColor(styler.getLabelsFontColor());
+    }
+
+    g.setFont(styler.getLabelsFont());
+    AffineTransform orig = g.getTransform();
+    AffineTransform at = new AffineTransform();
+    at.translate(labelX, labelY);
+    g.transform(at);
+    g.fill(shape);
+    g.setTransform(orig);
+  }
+}
